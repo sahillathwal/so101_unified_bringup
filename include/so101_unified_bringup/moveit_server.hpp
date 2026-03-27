@@ -71,7 +71,7 @@ private:
 
     void AddScenePlane();
     void set_constraints(const geometry_msgs::msg::Quaternion &quat);
-    bool Execute(const geometry_msgs::msg::Pose &target_pose);
+    bool Execute(const geometry_msgs::msg::Pose &target_pose, bool apply_orientation_constraint = true);
     bool Execute(const sensor_msgs::msg::JointState &target_joints);
     bool execute_plan(moveit::planning_interface::MoveGroupInterface::Plan &plan);
     void configure_move_group(

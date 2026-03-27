@@ -110,7 +110,10 @@ void MoveitServer::configure_move_group(
     bool clear_constraints)
 {
     move_group_arm_->setWorkspace(-1.0, -1.0, -1.0, 1.0, 1.0, 1.0);
-    move_group_arm_->setPlannerId(planner_id_);
+    if (!planner_id_.empty())
+    {
+        move_group_arm_->setPlannerId(planner_id_);
+    }
     move_group_arm_->setNumPlanningAttempts(5);
     move_group_arm_->setPlanningTime(planning_time);
     move_group_arm_->setGoalTolerance(goal_tolerance);
@@ -227,6 +230,7 @@ bool MoveitServer::Execute(const sensor_msgs::msg::JointState &target_joints)
     }
 
     configure_move_group(3.0, 0.003, 0.003, 0.2, 0.4, false);
+    move_group_arm_->setStartStateToCurrentState();
     move_group_arm_->setJointValueTarget(joint_targets);
 
     for (int attempt = 0; attempt < 15; ++attempt)
@@ -249,11 +253,19 @@ bool MoveitServer::Execute(const sensor_msgs::msg::JointState &target_joints)
     return false;
 }
 
-bool MoveitServer::Execute(const geometry_msgs::msg::Pose &target_pose)
+bool MoveitServer::Execute(const geometry_msgs::msg::Pose &target_pose, bool apply_orientation_constraint)
 {
-    configure_move_group(3.0, 0.005, 0.005, 0.2, 0.4, false);
-    set_constraints(target_pose.orientation);
+    configure_move_group(3.0, 0.005, 0.05, 0.2, 0.4, true);
+    move_group_arm_->setStartStateToCurrentState();
+    move_group_arm_->clearPoseTargets();
+
+    if (apply_orientation_constraint)
+    {
+        set_constraints(target_pose.orientation);
+    }
     move_group_arm_->setPoseTarget(target_pose);
+
+    bool use_position_only_goal = !apply_orientation_constraint;
 
     const int max_plan_count = 5;
     const double cost_difference_threshold = 0.35;
@@ -273,7 +285,13 @@ bool MoveitServer::Execute(const geometry_msgs::msg::Pose &target_pose)
 
         if (!planned)
         {
-            if (plans.size() < 3 && attempt == max_plan_count - 3)
+            if (!use_position_only_goal && attempt >= max_plan_count - 2)
+            {
+                move_group_arm_->clearPathConstraints();
+                use_position_only_goal = true;
+                RCLCPP_WARN(LOGGER, "Falling back to unconstrained pose target");
+            }
+            else if (plans.size() < 3 && attempt == max_plan_count - 3)
             {
                 move_group_arm_->clearPathConstraints();
             }
@@ -340,7 +358,7 @@ void MoveitServer::move_to_pose_callback(
     const std::shared_ptr<so101_unified_bringup::srv::PoseReq::Request> request,
     std::shared_ptr<so101_unified_bringup::srv::PoseReq::Response> response)
 {
-    response->success = Execute(request->object_pose);
+    response->success = Execute(request->object_pose, request->constraint);
 }
 
 void MoveitServer::move_to_joint_callback(
@@ -358,6 +376,7 @@ void MoveitServer::trajectory_callback(
     robot_trajectory.joint_trajectory = request->traj;
 
     configure_move_group(3.5, 0.003, 0.003, 0.2, 0.4, false);
+    move_group_arm_->setStartStateToCurrentState();
     response->success =
         move_group_arm_->execute(robot_trajectory) == moveit::core::MoveItErrorCode::SUCCESS;
 }
