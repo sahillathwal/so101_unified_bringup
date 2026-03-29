@@ -262,8 +262,13 @@ bool MoveitServer::Execute(const geometry_msgs::msg::Pose &target_pose, bool app
     if (apply_orientation_constraint)
     {
         set_constraints(target_pose.orientation);
+        move_group_arm_->setPoseTarget(target_pose);
     }
-    move_group_arm_->setPoseTarget(target_pose);
+    else
+    {
+        // Pure position-only target: ignore orientation entirely
+        move_group_arm_->setPositionTarget(target_pose.position.x, target_pose.position.y, target_pose.position.z);
+    }
 
     bool use_position_only_goal = !apply_orientation_constraint;
 
