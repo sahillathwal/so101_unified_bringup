@@ -1,1 +1,3 @@
-sensors: []
+/**:
+  ros__parameters:
+    sensors: []
