@@ -166,7 +166,10 @@ def generate_launch_description():
             DeclareLaunchArgument("z", default_value="0.7774"),
             DeclareLaunchArgument("yaw", default_value="0.0"),
             DeclareLaunchArgument("rviz", default_value="true"),
-            DeclareLaunchArgument("bridge_config", default_value=""),
+            DeclareLaunchArgument(
+                "bridge_config",
+                default_value=os.path.join(package_share, "config", "camera_bridge.yaml"),
+            ),
             DeclareLaunchArgument("move_group_name", default_value="arm"),
             DeclareLaunchArgument("collision_object_frame", default_value="world"),
             DeclareLaunchArgument("base_frame_id", default_value="base_link"),
